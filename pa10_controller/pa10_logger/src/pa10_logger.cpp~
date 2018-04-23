@@ -1,0 +1,31 @@
+#include <iostream>
+#include <cmath>
+#include <cstdio>
+
+#include "ros/ros.h"
+#include "ros/console.h"
+#include "sensor_msgs/JointState.h"
+
+class PA10Logger{
+public:
+  PA10Logger();
+
+private:
+  ros::NodeHandle nh;
+  ros::Subscriber joint_sub;
+  void JointMsgCallback(const sensor_msgs::JointState joint_state);
+  void getFK();
+  
+};
+
+PA10Logger::PA10Logger()
+{
+  joint_sub = nh.subscribe<sensor_msgs::JointState>("joint_state", 1000, JointMsgCallback);
+}
+
+int main(int argc, char **argv)
+{
+  PA10Logger pa10logger;
+  ros::spin();
+  return 0;
+}
