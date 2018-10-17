@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(pa10)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -124,6 +124,14 @@ include_directories(
 )
 
 ## Declare a C++ library
+ add_library(Matrix STATIC
+  src/init/Matrix.cpp
+ )
+
+ add_library(PA10Kinematics STATIC
+  src/init/PA10Kinematics.cpp
+ )
+
  add_library(joint_init
   src/init/joint_init.cpp
  )
@@ -164,6 +172,13 @@ add_dependencies(joint_init
 )
   target_link_libraries(joint_state_pub
     ${catkin_LIBRARIES} joint_init
+)
+
+  target_link_libraries(joint_state_pub
+    Matrix
+)
+  target_link_libraries(joint_state_pub
+    PA10Kinematics
 )
 #############
 ## Install ##
