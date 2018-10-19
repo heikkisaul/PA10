@@ -110,7 +110,7 @@ void Matrix::print()
 {
 	for(int i = 0; i < num_row; ++i) {
 		for(int j = 0; j < num_col; ++j) {
-			printf("%8.2f", matrix[i][j]);
+			printf("%8.2lf", matrix[i][j]);
 		}
 		std::cout << std::endl;
 	}
