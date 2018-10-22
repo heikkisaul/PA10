@@ -469,6 +469,7 @@ std::vector<double> PA10Controller::CirclePathGenerator(std::vector<double> cart
 //    via_point_vector[1] = cartesian_vector_0[1] + ((cartesian_vector_f[1] - cartesian_vector_0[1]) * val5thorder);
 //    via_point_vector[2] = cartesian_vector_0[2] + ((cartesian_vector_f[2] - cartesian_vector_0[2]) * val5thorder);
 
+
     // Debugging printing
     for (int i = 0; i < 3; ++i) {
         //std::cout << theta_vector[i];
