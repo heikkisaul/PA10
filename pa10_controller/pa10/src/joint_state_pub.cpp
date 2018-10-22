@@ -32,7 +32,8 @@ private:
     void initJointState(sensor_msgs::JointState *joint_state); // see init folder
 
     /*Example definition of kinematics compute functions*/
-    std::vector<std::vector<double>> ForwardKinematics(std::vector<double> theta_vector); //forward kinematics
+    std::vector<std::vector<double>> ForwardKinematics(std::vector<double> angle_vector); //forward kinematics
+    std::vector<double> ForwardConverter(std::vector<std::vector<double>> transform_mat);
 
     std::vector<double> InverseKinematics(std::vector<double> end_effector_vector, std::vector<std::vector<double>> transformation_matrix, std::vector<double> cartesian_vector_0); //inverse kinematics
     double bind_angle(double angle);
@@ -55,17 +56,9 @@ private:
     std::vector<double> initial_angle_vector;
     //std::vector<std::vector<double>> theta_coeff_matrix;
 
-    std::vector<double> initial_cartesian_vector;
+    //std::vector<double> initial_cartesian_vector;
     std::vector<double> start_cartesian_vector;
     std::vector<double> delta_cartesian_vector;
-
-    //PA10Kinematics converter;
-    std::vector<std::vector<double>> final_angles_matrix;
-
-    //Matrix mat_a01, mat_a12, mat_a23, mat_a34, mat_a45, mat_a56, transform_mat;
-    Matrix mat_phi, mat_theta, mat_psi;
-
-
 
 
 };
@@ -76,13 +69,11 @@ PA10Controller::PA10Controller() {
     ReachGoalFlag = false;
     //define ROS node
     joint_pub = node.advertise<sensor_msgs::JointState>("/pa10/joint_states", CLOCK);
-    initial_angle_vector = std::vector<double>({0, 30, 0, 10, 50, 0, 0});
+    initial_angle_vector = std::vector<double>({10, 10, 0, 10, 10, 10, 10});
 
-    initial_cartesian_vector = std::vector<double>({0, 0, 1317});
-
-
-    start_cartesian_vector = {579, 0, 1127.6};
-    delta_cartesian_vector = {200, 0, -200};
+    //start_cartesian_vector = {272.561, 50.203, 1271.901};
+    delta_cartesian_vector = {0, 0, 0};
+    //delta_cartesian_vector = {100, 200, -200};
 
     //final_cartesian_vector = {100, 100, 1000, 0, 0, 0};
     //final_cartesian_vector = {600, 400, 700, -M_PI/2, -M_PI/2, 0};
@@ -110,17 +101,16 @@ void PA10Controller::initJointState(sensor_msgs::JointState *joint_state)
     return;
 }
 
-std::vector<std::vector<double>> PA10Controller::ForwardKinematics(std::vector<double> theta_vector)
+std::vector<std::vector<double>> PA10Controller::ForwardKinematics(std::vector<double> angle_vector)
 {
 
-    Matrix mat_a01, mat_a12, mat_a23, mat_a34, mat_a45, mat_a56, transform_mat;
+    Matrix mat_a01, mat_a12, mat_a23, mat_a34, mat_a45, mat_a56;
+    Matrix transform_mat;
 
+    std::vector<double> theta_vector(6);
     std::vector<std::vector<double>> result_vector(4);
     std::vector<double> temp_row_vector(4);
 
-    mat_phi = Matrix(3, 3);
-    mat_theta = Matrix(3, 3);
-    mat_psi = Matrix(3, 3);
 
     for (int k = 0; k < 4; ++k) {
         for (int i = 0; i < 4 ; ++i) {
@@ -156,14 +146,16 @@ std::vector<std::vector<double>> PA10Controller::ForwardKinematics(std::vector<d
     mat_a56.set_value(2, 3, 70);
     mat_a56.set_value(3, 3, 1);
 
-    //fill constant values into orientation matrices
-    mat_phi.set_value(2, 2, 1);
-    mat_theta.set_value(0, 0, 1);
-    mat_psi.set_value(2, 2, 1);
-
-    for(int i = 0; i <= 6; i = i + 1){
-        theta_vector[i] = theta_vector[i] * M_PI/180;
+    for(int i = 0; i < 7; i++){
+        angle_vector[i] = angle_vector[i] * M_PI/180;
     }
+
+    theta_vector[0] = angle_vector[0];
+    theta_vector[1] = angle_vector[1];
+    theta_vector[2] = angle_vector[3];
+    theta_vector[3] = angle_vector[4];
+    theta_vector[4] = angle_vector[5];
+    theta_vector[5] = angle_vector[6];
 
     //fill theta-dependent variables into joint matrices
     mat_a01.set_value(0, 0, cos(theta_vector[0]));
@@ -210,11 +202,20 @@ std::vector<std::vector<double>> PA10Controller::ForwardKinematics(std::vector<d
         result_vector[j] = temp_row_vector;
     }
 
-    //start_cartesian_vector = {};
 
     return result_vector;
 }
 
+std::vector<double> PA10Controller::ForwardConverter(std::vector<std::vector<double>> transform_mat)
+{
+    std::vector<double> cartesian_vector(3);
+
+    cartesian_vector[0] = transform_mat[0][3];
+    cartesian_vector[1] = transform_mat[1][3];
+    cartesian_vector[2] = transform_mat[2][3];
+
+    return cartesian_vector;
+}
 
 std::vector<double> PA10Controller::InverseKinematics(std::vector<double> end_effector_vector, std::vector<std::vector<double>> transformation_matrix, std::vector<double> cartesian_vector_0)
 {
@@ -250,11 +251,11 @@ std::vector<double> PA10Controller::InverseKinematics(std::vector<double> end_ef
     inter1 = pow(pxi, 2) + pow(pyi, 2);
 
     //make sure inter1 is positive and calculate theta1
-    theta11 = bind_angle(2 * atan2(-pxi + sqrt(inter1), pyi));
-    theta12 = bind_angle(2 * atan2(-pxi - sqrt(inter1), pyi));
+    //theta11 = bind_angle(2 * atan2(-pxi + sqrt(inter1), pyi));
+    //theta12 = bind_angle(2 * atan2(-pxi - sqrt(inter1), pyi));
 
-    //theta11 = 2 * atan2(-pxi + sqrt(inter1), pyi);
-    //theta12 = 2 * atan2(-pxi - sqrt(inter1), pyi);
+    theta11 = 2 * atan2(-pxi + sqrt(inter1), pyi);
+    theta12 = 2 * atan2(-pxi - sqrt(inter1), pyi);
 
     if((std::abs(prev_val_vector[0]) - theta11) > std::abs(prev_val_vector[0] - theta12)){
         theta1 = theta12;
@@ -365,7 +366,7 @@ double PA10Controller::findCur5thOrderVal(double ticks, double duration_ticks, d
 
 std::vector<double> PA10Controller::LinePathGenerator(std::vector<double> cartesian_vector_0, std::vector<double> cartesian_vector_d, double movement_dur, double ticks, std::vector<std::vector<double>> transformation_mat)
 {
-    std::vector<double> via_point_vector(6);
+    std::vector<double> via_point_vector(3);
     std::vector<double> cartesian_vector_f(6);
     std::vector<double> via_angles_vector(7);
     std::vector<double> theta_vector(6);
@@ -379,13 +380,8 @@ std::vector<double> PA10Controller::LinePathGenerator(std::vector<double> cartes
     via_point_vector[1] = cartesian_vector_0[1] + ((cartesian_vector_f[1] - cartesian_vector_0[1]) * val5thorder);
     via_point_vector[2] = cartesian_vector_0[2] + ((cartesian_vector_f[2] - cartesian_vector_0[2]) * val5thorder);
 
-    //via_point_vector[3] = cartesian_vector_f[3];
-    //via_point_vector[4] = cartesian_vector_f[4];
-    //via_point_vector[5] = cartesian_vector_f[5];
 
-
-
-    theta_vector = InverseKinematics(via_point_vector, transformation_mat, start_cartesian_vector);
+    theta_vector = InverseKinematics(via_point_vector, transformation_mat, ForwardConverter(transformation_mat));
 
     via_angles_vector[0] = theta_vector[0];
     via_angles_vector[1] = theta_vector[1];
@@ -407,72 +403,6 @@ std::vector<double> PA10Controller::LinePathGenerator(std::vector<double> cartes
     return via_angles_vector;
 }
 
-/*std::vector<double> PA10Controller::LinePathGenerator(std::vector<double> start_cartesian_vector, std::vector<double> final_cartesian_vector, double movement_dur, double ticks)
-{
-    std::vector<double> via_point_vector(6);
-    std::vector<double> via_angles_vector(7);
-    std::vector<double> theta_vector(6);
-    double val5thorder = findCur5thOrderVal(ticks, movement_dur, 0, 1);
-
-    double phi_0 ;
-
-    //via_point_vector[0] = start_cartesian_vector[0] + ((final_cartesian_vector[0] - start_cartesian_vector[0]) * (ticks / (movement_dur)));
-    //via_point_vector[1] = start_cartesian_vector[1] + ((final_cartesian_vector[1] - start_cartesian_vector[1]) * (ticks / (movement_dur)));
-    //via_point_vector[2] = start_cartesian_vector[2] + ((final_cartesian_vector[2] - start_cartesian_vector[2]) * (ticks / (movement_dur)));
-
-    via_point_vector[0] = start_cartesian_vector[0] + ((final_cartesian_vector[0] - start_cartesian_vector[0]) * val5thorder);
-    via_point_vector[1] = start_cartesian_vector[1] + ((final_cartesian_vector[1] - start_cartesian_vector[1]) * val5thorder);
-    via_point_vector[2] = start_cartesian_vector[2] + ((final_cartesian_vector[2] - start_cartesian_vector[2]) * val5thorder);
-
-    via_point_vector[0] = start_cartesian_vector[0];
-
-
-    via_point_vector[3] = 0;
-    via_point_vector[4] = 0;
-    via_point_vector[5] = 0;
-
-    //theta_vector = converter.inverse_kinematics(via_point_vector);
-    theta_vector = InverseKinematics(via_point_vector);
-
-    via_angles_vector[0] = theta_vector[0];
-    via_angles_vector[1] = theta_vector[1];
-    via_angles_vector[2] = 1;
-    via_angles_vector[3] = theta_vector[2];
-    via_angles_vector[4] = theta_vector[3];
-    via_angles_vector[5] = theta_vector[4];
-//    via_angles_vector[6] = theta_vector[5];
-//    via_angles_vector[4] = 0;
-//    via_angles_vector[5] = 0;
-    via_angles_vector[6] = 0;
-
-    for (int i = 0; i < 7; ++i) {
-        std::cout << via_angles_vector[i];
-        //std::cout << via_angles_vector[i];
-        //std::cout << via_point_vector[i];
-        std::cout << "; ";
-
-    }
-    std::cout << "\n";
-
-    return via_angles_vector;
-}*/
-
-/*std::vector<std::vector<double>> PA10Controller::CreateCoeffMatrix(std::vector<double> initial_angles_vector, std::vector<double> final_angles_vector, double ticks)
-{
-    std::vector<double> temp_coeff_vector(5);
-    std::vector<std::vector<double>> result_matrix(7);
-    std::vector<double> cur_angles_vector(7);
-
-
-    for (int i = 0; i < 7 ; ++i) {
-
-        temp_coeff_vector = FindCoeffVector(cur_angles_vector[i],  )
-
-        result_matrix[i] = temp_coeff_vector;
-
-    }
-}*/
-
 
 void PA10Controller::MoveJoint(std::vector<double> theta_coeff_matrix)
 {
@@ -490,9 +420,6 @@ void PA10Controller::MoveJoint(std::vector<double> theta_coeff_matrix)
 
 void PA10Controller::StartMoving()
 {
-
-    std::vector<std::vector<double>> via_angles_matrix;
-
     ros::Rate loop_rate(10); //set loop rate 10[Hz]
 
     ROS_INFO("Start Moving");
@@ -505,7 +432,7 @@ void PA10Controller::StartMoving()
 
     while(ros::ok() && !ReachGoalFlag)
     {
-        std::vector<double> d  = LinePathGenerator(start_cartesian_vector, delta_cartesian_vector, movement_dur, ticks, trans_mat);
+        std::vector<double> d  = LinePathGenerator(ForwardConverter(trans_mat), delta_cartesian_vector, movement_dur, ticks, trans_mat);
         MoveJoint(d);
         ros::spinOnce();
         loop_rate.sleep();//sleep 1 loop rate(0.1sec)
