@@ -42,7 +42,7 @@ private:
     double Interpolate(std::vector<double> coeff_vector, double cur_time);
 
     std::vector<double> LinePathGenerator(std::vector<double> cartesian_vector_0, std::vector<double> cartesian_vector_f, double movement_dur, double ticks, std::vector<std::vector<double>> transformation_mat);
-    std::vector<double> CirclePathGenerator(std::vector<double> cartesian_vector_0, std::vector<double> cartesian_vector_d, double movement_dur, double ticks, std::vector<std::vector<double>> transformation_mat);
+    std::vector<double> CirclePathGenerator(std::vector<double> cartesian_vector_0, double radius, double movement_dur, double ticks, std::vector<std::vector<double>> transformation_mat);
     double findCur5thOrderVal(double ticks, double duration_ticks, double x_0, double x_f);
 
     void MoveJoint(std::vector<double> theta_coeff_matrix);
@@ -55,9 +55,6 @@ private:
     double movement_dur = 50;
 
     std::vector<double> initial_angle_vector;
-    //std::vector<std::vector<double>> theta_coeff_matrix;
-
-    //std::vector<double> initial_cartesian_vector;
     std::vector<double> start_cartesian_vector;
     std::vector<double> delta_cartesian_vector;
 
@@ -70,7 +67,8 @@ PA10Controller::PA10Controller() {
     ReachGoalFlag = false;
     //define ROS node
     joint_pub = node.advertise<sensor_msgs::JointState>("/pa10/joint_states", CLOCK);
-    initial_angle_vector = std::vector<double>({10, 10, 0, 10, 10, 10, 10});
+    initial_angle_vector = std::vector<double>({0, 45, 0, 45, 0, 0, 0});
+
 
     delta_cartesian_vector = {100, 200, -800};
 
@@ -327,7 +325,7 @@ std::vector<double> PA10Controller::InverseKinematics(std::vector<double> end_ef
     // Create matrix T'
     transform_matrix_prime = inverse_temp_matrix * transformation_matrix_mat;
 
-    transform_matrix_prime.print();
+    //transform_matrix_prime.print();
 
     // Calculate intermediate values for theta4, 5, 6 calculation.
     nxp = transform_matrix_prime.get_value(0, 0);
@@ -450,25 +448,29 @@ std::vector<double> PA10Controller::LinePathGenerator(std::vector<double> cartes
 
 
 // Generate circular path and calculate corresponding joint positions
-std::vector<double> PA10Controller::CirclePathGenerator(std::vector<double> cartesian_vector_0, std::vector<double> cartesian_vector_d, double movement_dur, double ticks, std::vector<std::vector<double>> transformation_mat)
+std::vector<double> PA10Controller::CirclePathGenerator(std::vector<double> cartesian_vector_0, double radius, double movement_dur, double ticks, std::vector<std::vector<double>> transformation_mat)
 {
     std::vector<double> via_point_vector(3);
-    std::vector<double> cartesian_vector_f(6);
+    //std::vector<double> cartesian_vector_f(6);
     std::vector<double> via_angles_vector(7);
     std::vector<double> theta_vector(6);
 
     // Interpolate values between 0 and 2*pi for smooth movement
     double val5thorder = findCur5thOrderVal(ticks, movement_dur, 0, (M_PI * 2));
 
-    // Find final cartesian positions for each step (based on initial and delta values)
-    for (int j = 0; j < 6; ++j) {
-        cartesian_vector_f[j] = cartesian_vector_0[j] + cartesian_vector_d[j];
-    }
+    via_point_vector[0] = cartesian_vector_0[0];
+    via_point_vector[1] = (cartesian_vector_0[1]) + (radius * cos(val5thorder + atan2(cartesian_vector_0[2], cartesian_vector_0[1])));
+    via_point_vector[2] = (cartesian_vector_0[2] - radius) + (radius * sin(val5thorder + atan2(cartesian_vector_0[2], cartesian_vector_0[1])));
 
-//    via_point_vector[0] = cartesian_vector_0[0] + ((cartesian_vector_f[0] - cartesian_vector_0[0]) * val5thorder);
-//    via_point_vector[1] = cartesian_vector_0[1] + ((cartesian_vector_f[1] - cartesian_vector_0[1]) * val5thorder);
-//    via_point_vector[2] = cartesian_vector_0[2] + ((cartesian_vector_f[2] - cartesian_vector_0[2]) * val5thorder);
+    theta_vector = InverseKinematics(via_point_vector, transformation_mat, ForwardConverter(transformation_mat));
 
+    via_angles_vector[0] = theta_vector[0];
+    via_angles_vector[1] = theta_vector[1];
+    via_angles_vector[2] = 0;
+    via_angles_vector[3] = theta_vector[2];
+    via_angles_vector[4] = theta_vector[3];
+    via_angles_vector[5] = theta_vector[4];
+    via_angles_vector[6] = theta_vector[5];
 
     // Debugging printing
     for (int i = 0; i < 3; ++i) {
@@ -477,6 +479,8 @@ std::vector<double> PA10Controller::CirclePathGenerator(std::vector<double> cart
         std::cout << "; ";
     }
     std::cout << "\n";
+
+    return via_angles_vector;
 
 }
 
@@ -507,7 +511,8 @@ void PA10Controller::StartMoving()
 
     while(ros::ok() && !ReachGoalFlag)
     {
-        std::vector<double> d  = LinePathGenerator(ForwardConverter(trans_mat), delta_cartesian_vector, movement_dur, ticks, trans_mat);
+        //std::vector<double> d  = LinePathGenerator(ForwardConverter(trans_mat), delta_cartesian_vector, movement_dur, ticks, trans_mat);
+        std::vector<double> d  = CirclePathGenerator(ForwardConverter(trans_mat), 100, movement_dur, ticks, trans_mat);
         MoveJoint(d);
         ros::spinOnce();
         loop_rate.sleep();//sleep 1 loop rate(0.1sec)
